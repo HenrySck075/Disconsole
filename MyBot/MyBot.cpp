@@ -8,7 +8,7 @@
 #include <codecvt>
 #include <stdlib.h>
 using namespace std;
-const string    BOT_TOKEN = "MTAxNDE0MTY4MDc5MTg2NzQxMw.Gq31q5.RUl0n1sw-9mmsS1t7-bk844IN6sOR7gPO0KYDc";
+const string    BOT_TOKEN = "you dont lmao";
 dpp::cluster bot(BOT_TOKEN);
 WINDOW* message;
 struct FocusingData {
