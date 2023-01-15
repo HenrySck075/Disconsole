@@ -4,7 +4,6 @@
 //idk if this is how we create an header file, im noob at c++
 
 //Get all values from an unordered_map type namespace as std::vector
-//@return
 std::vector<dpp::guild> return_unordered_values(dpp::guild_map map) {
     std::vector<dpp::guild> vals;
     vals.reserve(map.size());
