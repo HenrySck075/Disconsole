@@ -203,7 +203,6 @@ void key_event_log() {
             Sleep(1);
             resAcquireReady = true;
             int key = wgetch(win.guildList);
-            set_title(to_string(key));
             switch (key) {
             case 27:
                 // i dont see the part where this thing works as expected
@@ -218,7 +217,7 @@ void key_event_log() {
                 if (state == 0) {
                     state = 1;
                 };
-
+                switch_mode();
             case 99:
                 if (state == 0) {
                     state = 1;
