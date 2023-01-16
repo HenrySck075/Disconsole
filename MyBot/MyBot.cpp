@@ -16,7 +16,7 @@
 
 using namespace std;
 using boost::format;
-const string    BOT_TOKEN = "MTAxNDE0MTY4MDc5MTg2NzQxMw.Gq31q5.RUl0n1sw-9mmsS1t7-bk844IN6sOR7gPO0KYDc";
+const string    BOT_TOKEN = "MTAxNDE0MTY4MDc5MTg2NzQxMw.Gq31q5.RUl0n1sw-9mmsS1t7-bk844IN6sOR7gPO0KYDc"; //jim resetted the token so this is now invalid
 const string name = "Disconsole";
 dpp::cluster bot(BOT_TOKEN);
 bool ready = false;
