@@ -9,12 +9,11 @@ void print(std::string v) {
 };
 
 //scroll workaround
-int cscroll(WINDOW* win, std::vector<std::string>*view, int amount, int pos) {
+int cscroll(WINDOW* win, std::vector<std::string>*view, int pos) {
 	int y = getmaxy(win) - 2;//assume you used box
-	int ypos = y + pos;
 	std::vector<std::string> focus;
 	wmove(win, 1, 1); wclrtobot(win);
-	if (ypos < 0) { ypos = -1; }
+	if (pos < 0) { pos = -1; }
 	else {
 		for (int i = 1; i < y + 1; i++) {
 			wmove(win, i + pos, 1);
@@ -25,5 +24,5 @@ int cscroll(WINDOW* win, std::vector<std::string>*view, int amount, int pos) {
 			else { break; }
 		}
 	};
-	return ypos;
+	return pos;
 };

@@ -13,13 +13,15 @@
 #include <boost/format.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <other.h>
+#include <algorithm>
 
 using namespace std;
 using boost::format;
-const string    BOT_TOKEN = "MTAxNDE0MTY4MDc5MTg2NzQxMw.Gq31q5.RUl0n1sw-9mmsS1t7-bk844IN6sOR7gPO0KYDc";
-const string name = "Disconsole";
+const string BOT_TOKEN = ""; //mf just delete this before commit
+string name = "Disconsole";
 dpp::cluster bot(BOT_TOKEN);
 bool ready = false;
+bool resAcquireReady = false;
 struct FocusingData {
     vector<dpp::guild> guilds; //list of servers the account in    
     vector<dpp::channel> channels; //list of channels the (focusing) server have
@@ -44,8 +46,9 @@ vector<vector<string>> view;
 in order: win.guildList, win.channelList, win.messageList, win.memberList
 */
 vector<int> pypos;
+int focus = 0;//in order: win.guildList, win.channelList, win.messageList, win.memberList
 
-int state = 0; // normal, command, insert (send message)
+int state = 0; // normal, command, insert (send message), scroll
 // if you dont know what im doing, dont worry idk what im doing either
 struct {
     WINDOW* message;
@@ -81,7 +84,7 @@ void process_command(string req) {
             vector<string> temp;
             tie(d.channels, temp) = fill_channels(&bot, g);
 
-            pypos[1]=cscroll(win.channelList, &temp, 0, 0);
+            pypos[1]=cscroll(win.channelList, &temp, 0);
             wborder(win.channelList, 0, 0, 0, 0, ACS_TTEE, 0, ACS_BTEE, 0);
             wrefresh(win.channelList);
         }
@@ -118,7 +121,51 @@ void process_command(string req) {
     };
 };
 void switch_mode() {
-    if (state == 1) {
+    if (state == 3) {
+        WINDOW* the[] = { win.guildList,win.channelList };
+        while (1) {
+            format t = format("%1% | SCROLL mode - Press J to go to previous or L to next window") % name;
+            set_title(t.str());
+            switch (getch()) {
+                //please forgive me
+            case 27:
+                state = 0;
+                set_title(name);
+                noecho();
+                return;
+            case 76:
+                focus++;
+                if (focus > 1) { focus = 1; }
+            case 108:
+                focus++;
+                if (focus > 1) { focus = 1; }
+            case 74:
+                focus--;
+                if (focus < 0) { focus = 0; }
+            case 106:
+                focus--;
+                if (focus < 0) { focus = 0; }
+            case 73:
+                if (pypos[focus] > -1) {
+                    cscroll(the[focus], &view[focus], pypos[focus] - 1);
+                }
+            case 105:
+                if (pypos[focus] > -1) {
+                    cscroll(the[focus], &view[focus], pypos[focus] - 1);
+                }
+            case 75:
+                if (pypos[focus] < 2) {
+                    cscroll(the[focus], &view[focus], pypos[focus] + 1);
+                }
+            case 107:
+                if (pypos[focus] < 2) {
+                    cscroll(the[focus], &view[focus], pypos[focus] + 1);
+                }
+            };
+            wrefresh(the[focus]);
+        };
+    }
+    else if (state == 1) {
         format t = format("%1% | COMMAND mode") % name;
         set_title(t.str());
         wmove(win.cmd, 0, 0);
@@ -142,8 +189,8 @@ void switch_mode() {
         noecho();
         state = 0;
         set_title(name);
-    };
-    if (state == 0) {
+    }
+    else if (state == 0) {
         set_title(name);
         noecho();
         wrefresh(win.guildList);
@@ -153,7 +200,10 @@ void switch_mode() {
 void key_event_log() {
     while (1) {
         if (ready) {
+            Sleep(1);
+            resAcquireReady = true;
             int key = wgetch(win.guildList);
+            set_title(to_string(key));
             switch (key) {
             case 27:
                 // i dont see the part where this thing works as expected
@@ -163,18 +213,29 @@ void key_event_log() {
                 else if (state == 1) {
                     state = 0;
                 };
-                switch_mode();
+
             case 67:
                 if (state == 0) {
                     state = 1;
                 };
-                switch_mode();
+
             case 99:
                 if (state == 0) {
                     state = 1;
                 };
-                switch_mode();
-            }
+
+            case 83:
+                if (state == 0) {
+                    state = 3;
+                };
+
+            case 115:
+                if (state == 0) {
+                    state = 3;
+                };
+
+            };
+            if (key!=-1){ switch_mode(); }
         };
         Sleep(10);
     }
@@ -261,7 +322,7 @@ int main() {
     bot.on_ready([&](const dpp::ready_t& event) {
         vector<string> temp;
         tie(d.guilds,temp)=fill_guilds(&bot);
-        pypos[0] = cscroll(win.guildList, &temp, 0, 0);
+        pypos[0] = cscroll(win.guildList, &temp, 0);
         wborder(win.guildList, 0, 32, 0, 0, 0, 32, 0, 32);
         move(0, 0);
         clrtobot();
@@ -278,9 +339,31 @@ int main() {
             );
         };
     });
+    bot.on_guild_create([&](const dpp::guild_create_t& event) {
+        if (resAcquireReady) {
+            //does he knows?
+            vector<string> temp;
+            tie(d.guilds, temp) = fill_guilds(&bot);
+            pypos[0]=cscroll(win.guildList, &temp, pypos[0]);
+            wborder(win.guildList, 0, 32, 0, 0, 0, 32, 0, 32);
+        }
+    });
+    bot.on_channel_create([&](const dpp::channel_create_t& event) {
+        //if no server is open
+        if (!d.channels.empty()) {
+            //if the created channel is not in the focusing server
+            if (event.created->guild_id != d.channels[0].guild_id) {
+                vector<string> temp;
+                tie(d.channels, temp) = fill_channels(&bot, event.created->guild_id);
+                pypos[1] = cscroll(win.channelList, &temp, 0);
+                wborder(win.channelList, 0, 0, 0, 0, ACS_TTEE, 0, ACS_BTEE, 0);
+            }
+        }
+    });
     set_title(name);
     thread cons(curser);
     thread kel(key_event_log);
     bot.start(dpp::st_wait);
+    return 0;
 };
 
