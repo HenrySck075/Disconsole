@@ -3,10 +3,12 @@ import traceback
 
 import selfcord
 
-from typing import Any, TypeVar, Generic
+from typing import Any, TypeVar, Generic, TypedDict
 import asyncio, os
-os.environ["PROMPT_TOOLKIT_COLOR_DEPTH"] = "DEPTH_24_BIT"
 
+from selfcord.colour import Color
+os.environ["PROMPT_TOOLKIT_COLOR_DEPTH"] = "DEPTH_24_BIT"
+from nullsafe import undefined,_
 import help
 from prompt_toolkit.widgets import TextArea
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -54,7 +56,36 @@ widgetIndex = {
     "channels": [],
     "messages": []
 }
-userColorsCache = {}
+class a(TypedDict):
+    guild: DefaultDict[int,str]
+    dm: DefaultDict[int,str]
+userColorsCache:dict[int,a] = {}
+
+def get_user_color(user:selfcord.Member|selfcord.User, guild_id:int, force=False) -> str:
+    """
+    NOTE: there's no fucking way discord gonna give us the color when we spam it
+
+    :param force: Force fetching user color
+    """
+    global userColorsCache
+    if user.id not in userColorsCache:
+        userColorsCache[user.id] = {"dm":DefaultDict[int,str]({}), "guild":DefaultDict[int,str]({})} # pyright: ignore
+    id = 0 
+    root=DefaultDict[int,str]({}) # pyright: ignore
+    if type(user) == selfcord.Member:
+        id = guild_id #pyright: ignore
+        root = userColorsCache[user.id]["guild"]
+    elif type(user) == selfcord.User:
+        return "#95a5a6"
+    else:
+        raise TypeError("watch your tone (`user` is not a Member or User)")
+
+    if root[id] == None or force:
+        ret = root[id] = user.color.__str__()
+        if ret == Color(0).__str__(): ret = "#95a5a6"
+        return ret
+    else: return root[id]
+
 
 def render_guilds(x=0):
     global guilds, windows
@@ -97,8 +128,18 @@ async def render_channels(gid:int):
     cwin.content.children = container # pyright: ignore
     app._redraw()
 
-async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
+async def add_colors_later(h: dict[selfcord.Member|selfcord.User, list[Window]],guild_id:int|None):
+    await asyncio.sleep(2)
+    if guild_id == None: return
+    for i in h.keys():
+        col = get_user_color(i,guild_id)
+        for j in h[i]:
+            j.content.text[0] = ("fg:"+col+" bold",i.display_name+"              ") # pyright: ignore
+    # should be reasonable to invalidate ui now
+    app.invalidate()
+async def create_msg_window(i: selfcord.Message, notify_on_mention=False, kwargs=[]):
     global userColorsCache
+
     if i.content != "":
         h=HSplit([
             Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i))),wrap_lines=True)
@@ -107,16 +148,18 @@ async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
         h=HSplit([])
     for attach in i.attachments:
         h.children.append(Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url)))
-    h.children.insert(0, Window(FormattedTextControl([
-        ("fg:"+i.author.color.__str__()+" bold",i.author.display_name+"              "),
+    w = Window(FormattedTextControl([
+        ("fg:#95a5a6"+" bold",i.author.display_name+"              "),
         ("fg:gray",i.created_at.strftime("%m/%d/%Y, %H:%M:%S"))
-    ],focusable=True),height=1))
+    ],focusable=True),height=1)
+    kwargs.append(i,w)
+    h.children.insert(0, w)
     if (msgref:=i.reference) is not None:
         msg = msgref.resolved
         if type(msg) == selfcord.Message:
             h.children.insert(0, Window(FormattedTextControl([
                 ("","\U000f0772"),
-                ("fg:"+msg.author.color.__str__(), msg.author.display_name),
+                ("fg:#95a5a6", msg.author.display_name),
                 ("fg:gray",msg.content)
             ]),height=1))
         else:
@@ -129,17 +172,20 @@ async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
         if notify_on_mention: help.push_notification(i.channel.guild.name + " #"+i.channel.name, i.content) # pyright: ignore
     return h
 
-async def render_messages(cid:int, oldContainer = []):
+async def render_messages(channel:selfcord.abc.MessageableChannel, oldContainer = []):
     global messages, windows, lastUser
-    stfupyright: selfcord.TextChannel = await help.get_or_fetch(client, "channel", cid) # pyright: ignore
-    messages = [i async for i in stfupyright.history(limit = 50)]
+    messages = [i async for i in channel.history(limit = 50)]
     container = []
     idx = 0
+    rust:dict[selfcord.Member|selfcord.User, list[Window]] = {}
+    "list of messages needs to have user colors resolved (not counting reply widget)"
     for i in messages.__reversed__():
-        h = await create_msg_window(i)
+        if i.author not in rust: rust[i.author] = []
+        h = await create_msg_window(i,False,rust[i.author])
         container.append(h)
         widgetIndex["messages"].append(i.id)
         idx+=1
+    asyncio.ensure_future(add_colors_later(rust,channel.guild_id)) # pyright: ignore
     container.extend(oldContainer)
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
@@ -208,7 +254,7 @@ def keybind_lore():
         elif mode == 2 and scrollTarget == "channels":
             st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
             chInfo = channels[scrollCursorPos[st]]
-            await render_messages(chInfo.id)
+            await render_messages(chInfo) # pyright: ignore
             focusingCh = chInfo.id
             mode = 2
             scrollTarget="messageContent"
@@ -243,8 +289,6 @@ def keybind_lore():
 
     return kb
  
-
-
 async def main():
     global windows, client, app
     conf = help.loadJson("config.json")
