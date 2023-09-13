@@ -1,0 +1,100 @@
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/discord/client.py", line 378, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 265, in on_message
+    app.layout.focus(windows["messageContent"].content.children[-1])
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/prompt_toolkit/layout/layout.py", line 135, in focus
+    raise ValueError(
+ValueError: Invalid value. Window does not appear in the layout: Window(content=<prompt_toolkit.layout.controls.DummyControl object at 0x72c5fb9c90>)
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/discord/client.py", line 378, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 268, in on_message
+    if msg[0] != lastUser:
+                 ^^^^^^^^
+UnboundLocalError: cannot access local variable 'lastUser' where it is not associated with a value
+Traceback (most recent call last):
+  File "C:\Users\HenryS\AppData\Local\Programs\Python\Python311\Lib\site-packages\selfcord\client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "C:\Users\HenryS\Desktop\GitHub Repositories\Little Project Store\lps\consolas\main.py", line 320, in on_message
+    app.layout.focus(h)
+  File "C:\Users\HenryS\AppData\Local\Programs\Python\Python311\Lib\site-packages\prompt_toolkit\layout\layout.py", line 163, in focus
+    raise ValueError(
+ValueError: Invalid value. Container cannot be focused: <prompt_toolkit.layout.containers.HSplit object at 0x000001BC8060C150>
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 1091971714713391114 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 1125076297589202964 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 400348505945931777 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 1125076297589202964 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 1125076297589202964 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 427893900594774026 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 400348505945931777 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 902361718993330270 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 400348505945931777 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 524336905052094490 is not in list
+Traceback (most recent call last):
+  File "/data/data/com.termux/files/usr/lib/python3.11/site-packages/selfcord/client.py", line 600, in _run_event
+    await coro(*args, **kwargs)
+  File "/data/data/com.termux/files/home/projects/lps/consolas/main.py", line 324, in on_raw_message_delete
+    index = widgetIndex["messages"].index(payload.channel_id)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 524336905052094490 is not in list
