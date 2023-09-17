@@ -14,6 +14,7 @@ class ThemeColors:
     selectHighlight = "bg:#404249"
     msgFocusHighlight = "bg:#2F3238"
     msgMentionHighlight = "bg:#444037"
+    accent = "bg:#5865f2"
     url = "fg:#00A8FC"
     mentionTextHighlight = "bg:#4e4e74"
 tc = ThemeColors()
