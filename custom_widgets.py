@@ -25,73 +25,21 @@ class FSProgressBar(Window):
         self._ratio = v
         self.content = FormattedTextControl("\u25a0"*self.preferred_width(self.width).preferred)
 
-class WindowWithUsrdat(Window):
-    def __init__(self, data, *args, **kwargs):
+class UserDataContainer:
+    def __init__(self, data, container: Container):
         """
         Container that holds a control (with user data).
         To add data to a _Split, choose a focusable container and let it hold the data (current Disconsole implementaion idk how you will do that).
 
         :param data: anything
-        :param content: :class:`.UIControl` instance.
-        :param width: :class:`.Dimension` instance or callable.
-        :param height: :class:`.Dimension` instance or callable.
-        :param z_index: When specified, this can be used to bring element in front
-            of floating elements.
-        :param dont_extend_width: When `True`, don't take up more width then the
-                                  preferred width reported by the control.
-        :param dont_extend_height: When `True`, don't take up more width then the
-                                   preferred height reported by the control.
-        :param ignore_content_width: A `bool` or :class:`.Filter` instance. Ignore
-            the :class:`.UIContent` width when calculating the dimensions.
-        :param ignore_content_height: A `bool` or :class:`.Filter` instance. Ignore
-            the :class:`.UIContent` height when calculating the dimensions.
-        :param left_margins: A list of :class:`.Margin` instance to be displayed on
-            the left. For instance: :class:`~prompt_toolkit.layout.NumberedMargin`
-            can be one of them in order to show line numbers.
-        :param right_margins: Like `left_margins`, but on the other side.
-        :param scroll_offsets: :class:`.ScrollOffsets` instance, representing the
-            preferred amount of lines/columns to be always visible before/after the
-            cursor. When both top and bottom are a very high number, the cursor
-            will be centered vertically most of the time.
-        :param allow_scroll_beyond_bottom: A `bool` or
-            :class:`.Filter` instance. When True, allow scrolling so far, that the
-            top part of the content is not visible anymore, while there is still
-            empty space available at the bottom of the window. In the Vi editor for
-            instance, this is possible. You will see tildes while the top part of
-            the body is hidden.
-        :param wrap_lines: A `bool` or :class:`.Filter` instance. When True, don't
-            scroll horizontally, but wrap lines instead.
-        :param get_vertical_scroll: Callable that takes this window
-            instance as input and returns a preferred vertical scroll.
-            (When this is `None`, the scroll is only determined by the last and
-            current cursor position.)
-        :param get_horizontal_scroll: Callable that takes this window
-            instance as input and returns a preferred vertical scroll.
-        :param always_hide_cursor: A `bool` or
-            :class:`.Filter` instance. When True, never display the cursor, even
-            when the user control specifies a cursor position.
-        :param cursorline: A `bool` or :class:`.Filter` instance. When True,
-            display a cursorline.
-        :param cursorcolumn: A `bool` or :class:`.Filter` instance. When True,
-            display a cursorcolumn.
-        :param colorcolumns: A list of :class:`.ColorColumn` instances that
-            describe the columns to be highlighted, or a callable that returns such
-            a list.
-        :param align: :class:`.WindowAlign` value or callable that returns an
-            :class:`.WindowAlign` value. alignment of content.
-        :param style: A style string. Style to be applied to all the cells in this
-            window. (This can be a callable that returns a string.)
-        :param char: (string) Character to be used for filling the background. This
-            can also be a callable that returns a character.
-        :param get_line_prefix: None or a callable that returns formatted text to
-            be inserted before a line. It takes a line number (int) and a
-            wrap_count and returns formatted text. This can be used for
-            implementation of line continuations, things like Vim "breakindent" and
-            so on.
+        :param 
         """
 
-        super().__init__(*args,**kwargs)
+        super().__init__()
         self.data = data
+        self.container = container
+
+    def __pt_container__(self): return self.container
 
 class RoundedFrame:
     """

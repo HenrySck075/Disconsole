@@ -1,50 +1,34 @@
 from datetime import datetime
+from functools import partial
 import traceback
-
 import selfcord
 
-from typing import Any, TypeVar, Generic, TypedDict
+from typing import Any, Callable, Coroutine
 import asyncio, os
 
-from selfcord.colour import Color
 os.environ["PROMPT_TOOLKIT_COLOR_DEPTH"] = "DEPTH_24_BIT"
 from nullsafe import undefined,_
-import help
+import help 
+zone = help.zone
 
-import soundfile as sf, sounddevice as sd, numpy as np # audio stuff
+try: import soundfile as sf, sounddevice as sd, numpy as np # audio stuff
+except OSError as e:
+    print(e,". Audio features won't be available")
 
-from custom_widgets import RoundedFrame as Frame
+from custom_widgets import RoundedFrame as Frame, FSProgressBar as ProgressBar
 from prompt_toolkit.widgets import TextArea
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.application import Application 
 from prompt_toolkit.application.run_in_terminal import in_terminal
-from prompt_toolkit.layout import ConditionalContainer, Layout, Window, HSplit, VSplit, FormattedTextControl, WindowAlign, ScrollablePane
+from prompt_toolkit.layout import Layout, Window, HSplit, VSplit, FormattedTextControl, WindowAlign, ScrollablePane
 from prompt_toolkit.filters import Condition
-from prompt_toolkit.key_binding import KeyPressEvent
+from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
 from prompt_toolkit.key_binding.bindings.mouse import load_mouse_bindings
-from prompt_toolkit.formatted_text import PygmentsTokens
 from prompt_toolkit.styles.pygments import style_from_pygments_cls
-
-_KT = TypeVar("_KT",contravariant=True)
-_VT = TypeVar("_VT",contravariant=True)
+from help import TypingList, DefaultDict, component
 
 tc = help.ThemeColors()
 
-class TypingList(list):
-    def __init__(self, *ok):
-        super().__init__(*ok)
-
-    def __setitem__(self, k: int, v: selfcord.User | selfcord.Member):
-        list.__setitem__(self,k,v)
-class DefaultDict(dict, Generic[_KT,_VT]):
-    def __init__(self, map, default:_VT = None):
-        super().__init__(map)
-        self.default_value = default
-
-    def __getitem__(self, __key: _KT) -> _VT: # pyright: ignore
-        try:
-            return super().__getitem__(__key)
-        except KeyError: return self.default_value
 # session states
 mode = 0 # 0 for cmd, 1 for input, 2 for scrolling
 scrollTarget = ""
@@ -57,50 +41,16 @@ widgetIndex = {
     "channels": [],
     "messages": []
 }
-widgetData = {
-    "guilds": [],
-    "channels": [],
-    "messages": [],
-    "forums": []
-}
-# dont worry `global` already took care of typecheck deciding availability :thumbsup:
-for i in widgetData.keys():
-    exec(i+"=widgetData['"+i+"']",globals())
-
-class a(TypedDict):
-    guild: DefaultDict[int,str]
-    dm: DefaultDict[int,str]
-userColorsCache:dict[int,a] = {}
-
-async def get_user_color(user_id:int, guild_id:int, force=False) -> str:
-    """
-    NOTE: there's no fucking way discord gonna give us the color if it's from on message event
-
-    :param force: Force fetching user color
-    """
-    user = await help.get_or_fetch(client.get_user,help.MISSING,user_id)
-    assert user is not None, "User does not exist"
-    global userColorsCache
-    if user_id not in userColorsCache:
-        userColorsCache[user_id] = {"dm":"", "guild":DefaultDict[int,str]({})} # pyright: ignore
-    id = 0 
-    root=DefaultDict[int,str]({}) # pyright: ignore
-    if type(user_id) != int:
-        raise TypeError("henry i thought pyright is that strict (`user` is not int)")
-    if guild_id!=0:
-        id = guild_id #pyright: ignore
-        root = userColorsCache[user_id]["guild"]
-    else:
-        return "#95a5a6"
-
-    if root[id] == None or force:
-        ret = root[id] = user.color.__str__()
-        if ret == Color(0).__str__(): ret = "#95a5a6"
-        return ret
-    else: return root[id]
+guilds = []
+channels = []
+messages = []
+forums = []
+msgReplyMap = DefaultDict[int,int]({},0)
 
 
-def render_guilds(x=0):
+async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
+    return await component("Message", client=client, data=i, notify_on_mention=notify_on_mention)
+def render_guilds():
     global guilds, windows
     guilds = [(i.name, i.id) for i in client.guilds]
     gwin = windows["guilds"] 
@@ -142,105 +92,6 @@ async def render_channels(gid:int):
     app._redraw()
     scrollTarget = "channels"
 
-def sizeof_fmt(num, suffix="B"):
-    for unit in ("", "K", "M", "G", "T", "P", "E", "Z"):
-        if abs(num) < 1000.0:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1000.0
-    return f"{num:.1f}Y{suffix}"
-async def render_attachment(attach: selfcord.Attachment):
-    assert attach.content_type is not None
-    if "text/" in attach.content_type:
-        return Frame(
-            HSplit([
-                Window(FormattedTextControl((await attach.read()).decode()),height=6),
-                Window(FormattedTextControl([
-                    ("bold", attach.filename),
-                    ("fg:gray", sizeof_fmt(attach.size))
-                ]),align=WindowAlign.RIGHT)
-            ],style=tc.channelListBg),
-            style=tc.channelListBg+" "+tc.secondaryBg.replace("bg","fg")
-        )
-    if "audio/" in attach.content_type:
-        return Frame(
-            HSplit([
-                Window(FormattedTextControl([
-                    (tc.accent, "\uf1c7"),
-                    (tc.url, attach.filename),
-                    ("fg:gray", sizeof_fmt(attach.size))
-                ])),
-                VSplit([
-                    Window(FormattedTextControl("\U000f040a",style="fg:#A0A0A1")),
-
-                ])
-            ],style=tc.channelListBg)
-        )
-    else: return Window(FormattedTextControl("\U000f0066 "+attach.url,tc.url))
-
-async def create_msg_window(i: selfcord.Message, notify_on_mention=False):
-    global userColorsCache
-    def conditional_tuple(t:tuple[str,str],f:bool) -> tuple[str,str]:
-        return t if f else ("","")
-    def cond(h: list[tuple[tuple[str,str],bool]]):
-        for i in h:
-            if (x:=conditional_tuple(i[0],i[1])) != ("",""): return x 
-        return ("","")
-    assert i.channel.guild is not None
-
-    if i.content != "":
-        h=HSplit([
-            Window(FormattedTextControl(PygmentsTokens(await help.format_message(client, i))),wrap_lines=True)
-        ])
-    else:
-        h=HSplit([])
-    for attach in i.attachments:
-        h.children.append(await render_attachment(attach))
-    w = Window(FormattedTextControl([
-        ("bold fg:"+await get_user_color(i.author.id,i.channel.guild.id),i.author.display_name+" "),
-        cond([((tc.accent,"BOT"),i.author.bot),((tc.accent,"\U000f012c BOT"),i.author.bot and i.author.public_flags.verified_bot),((tc.accent,"SYSTEM"),i.author.system)]),
-        ("fg:gray",i.created_at.strftime("%m/%d/%Y, %H:%M:%S"))
-    ],focusable=True),height=1)
-    h.children.insert(0, w)
-    if (msgref:=i.reference) is not None:
-        msg = msgref.resolved
-        # 1: conditional container is bloatware
-        # 2: pyright will shout at me for None
-        if type(msg) == selfcord.Message:
-            h.children.insert(0, Window(FormattedTextControl([
-                ("","\U000f0772"),
-                ("bold fg:"+await get_user_color(msg.author.id,i.channel.guild.id), msg.author.display_name+" "),
-                ("fg:gray",msg.content)
-            ]),height=1))
-        else:
-            h.children.insert(0, Window(FormattedTextControl([
-                ("","\U000f0772"),
-                ("italic fg:gray","Cannot load the message." if type(msg) == None else "Original message was deleted.")
-            ])))
-    if client.user in i.mentions:
-        h.style = tc.msgMentionHighlight
-        if notify_on_mention: help.push_notification(i.channel.guild.name + " #"+i.channel.name, i.content) # pyright: ignore
-    return h
-
-def rf_relative_time(time:datetime):
-    diff = datetime.now() - time
-    s = diff.seconds
-    if diff.days > 30:
-        return '>30d ago'
-    elif diff.days >= 1:
-        return '{}d ago'.format(diff.days)
-    elif s <= 1:
-        return 'just now'
-    elif s < 60:
-        return '{}s ago'.format(s)
-    elif s < 120:
-        return '1m ago'
-    elif s < 3600:
-        return '{}m ago'.format(s/60)
-    elif s < 7200:
-        return '1h ago'
-    else:
-        return '{}h ago'.format(s/3600)
-
 async def render_forums(channel: selfcord.ForumChannel):
     global windows, scrollTarget, forums
     forums = channel.threads 
@@ -251,7 +102,7 @@ async def render_forums(channel: selfcord.ForumChannel):
         container.append(Frame(
             VSplit([
                 Window(FormattedTextControl([
-                    ("bold: fg:"+await get_user_color(i.owner_id, channel.guild.id),(i.owner.name if i.owner is not None else "")+"  "),
+                    ("bold: fg:"+await help.get_user_color(client, i.owner_id, channel.guild.id),(i.owner.name if i.owner is not None else "")+"  "),
                     ("fg:gray",rf_relative_time([n async for n in i.history(limit=1)][0].created_at))
                 ])),
                 Window(FormattedTextControl(i.name,style=tc.mainBg+" bold",focusable=True)),
@@ -261,7 +112,6 @@ async def render_forums(channel: selfcord.ForumChannel):
     win = windows["forums"]
     win.content.children = container
     scrollTarget = "forum"
-
 
 async def render_messages(channel:help.MessageableChannel, oldContainer = []):
     global scrollTarget
@@ -279,6 +129,7 @@ async def render_messages(channel:help.MessageableChannel, oldContainer = []):
     mwin = windows["messageContent"]
     mwin.content.children = container # pyright: ignore
     app.layout.focus(container[-1])
+    scrollCursorPos["messageContent_"+str(focusingCh)] = len(container)-1
     app._redraw()
     scrollTarget="messageContent"
 
@@ -308,28 +159,41 @@ def keybind_lore():
         st = scrollTarget+"_"+str(focusingCh)
         windows[scrollTarget].content.get_children()[scrollCursorPos[st]].style = tc.msgFocusHighlight # pyright: ignore
 
-    @kb.add("up", filter=Condition(lambda: scrollTarget != ""))
-    def sup(e: KeyPressEvent):
+    getst = lambda: scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG if scrollTarget=="channels" else focusingCh))
+    def sup(amount: int, e):
         global focusingG
-        st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
-        if (i:=scrollCursorPos[st]-1) >= 0:
-            win = windows[scrollTarget].content.get_children()
-            limbo = win[i] # type: Window
-            un = win[i+1]
-            un.style = "" # pyright: ignore
-            limbo.style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
-            scrollCursorPos[st]-=1
-            app.layout.focus(limbo)
+        st = getst()
+        i=scrollCursorPos[st]-amount
+        if i < 0: amount = scrollCursorPos[st]
+        win = windows[scrollTarget].content.get_children()
+        limbo = win[i] # type: Window
+        un = win[i+amount]
+        un.style = "" # pyright: ignore
+        limbo.style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
+        scrollCursorPos[st]-=amount
+        app.layout.focus(limbo)
+        app.invalidate()
 
-    @kb.add("down", filter=Condition(lambda: scrollTarget != ""))
-    def sdown(e: KeyPressEvent):
+    def sdown(amount:int, e: KeyPressEvent):
         global focusingG
-        st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
-        if (i:=scrollCursorPos[st]+1) < len((win:=windows[scrollTarget].content.get_children())):
-            win[i].style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
-            win[i-1].style = "" # pyright: ignore
-            scrollCursorPos[st]+=1
-            app.layout.focus(win[i])
+        st = getst()
+        i=scrollCursorPos[st]+amount
+        win=windows[scrollTarget].content.get_children()
+        if not i < len(win): amount = -(i-len(win))
+        win[i].style = tc.selectHighlight if scrollTarget != "messageContent" else tc.msgFocusHighlight # pyright: ignore
+        win[i-amount].style = "" # pyright: ignore
+        scrollCursorPos[st]+=amount
+        app.layout.focus(win[i])
+        app.invalidate()
+
+    kb.add("down", filter=Condition(lambda: scrollTarget != ""))(partial(sdown,1))
+    kb.add("pagedown", filter=Condition(lambda: scrollTarget != ""))(partial(sdown,10))
+    kb.add("up", filter=Condition(lambda: scrollTarget != ""))(partial(sup,1))
+    kb.add("pageup", filter=Condition(lambda: scrollTarget != ""))(partial(sup,10))
+
+    @kb.add("c-s-4")
+    def refresh(e: KeyPressEvent):
+        e.app.invalidate()
     
     @kb.add("enter", filter=Condition(lambda: mode != 1))
     async def click(e):
@@ -339,7 +203,7 @@ def keybind_lore():
             windows[scrollTarget].content.get_children()[scrollCursorPos[scrollTarget]].style=""
             focusingG = guilds[scrollCursorPos[scrollTarget]][1]
         elif mode == 2 and scrollTarget == "channels":
-            st = scrollTarget+("" if scrollTarget == "guilds" else "_"+str(focusingG))
+            st = scrollTarget+"_"+str(focusingG)
             chInfo = channels[scrollCursorPos[st]]
             await render_messages(chInfo) # pyright: ignore
             focusingCh = chInfo.id
@@ -368,6 +232,16 @@ def keybind_lore():
         app.layout.focus(windows["messageInput"].body)
         mode = 1
 
+    @kb.add("c-r", filter=Condition(lambda: mode == 2 and scrollTarget == "messageContent"))
+    async def msg_reply(e):
+        ctrl:FormattedTextControl = windows["msgReply"].content
+        msg = messages[scrollCursorPos["messageContent_"+str(focusingCh)]]
+        assert type(ctrl.text) == str, "nuh uh"
+        ctrl.text = [ctrl.text[0], ("bold fg:"+await help.get_user_color(client, msg.author.id,focusingG))] # :traumatized_pero: # pyright: ignore
+        msgReplyMap[focusingCh] = msg.id
+        windows["messages"].children[1].children.insert(0,windows["msgReply"])
+
+    # quit
     @kb.add("c-q")
     async def shut(e: KeyPressEvent):
         e.app.exit()
@@ -407,6 +281,7 @@ def add_events(client:selfcord.Client):
     # load the main ui
     @client.event 
     async def on_ready():
+        app.key_bindings = kb
         mainw = VSplit([
             windows["guilds"],
             windows["VerticalLine"],
@@ -437,11 +312,15 @@ def add_events(client:selfcord.Client):
         global lastUser
         if focusingCh == i.channel.id:
             h = await create_msg_window(i,True)
-            windows["messageContent"].content.children.append()
+            windows["messageContent"].content.children.append(h)
             lastUser = i.author.id
             app.invalidate()
 
-            app.layout.focus(h)
+            if scrollCursorPos["messageContent_"+str(focusingCh)] >= len(windows["messageContent"].content.children) - 10 :
+                lastFocused = app.layout.current_window
+                app.layout.focus(h)
+                if not (scrollTarget == "messageContent" and mode == 2):
+                    app.layout.focus(lastFocused)
 
     @client.event
     async def on_message_delete(msg: selfcord.Message):
@@ -459,9 +338,34 @@ def add_events(client:selfcord.Client):
 
     return client
 
+KPECallable = Callable[[KeyPressEvent],None] | Callable[[KeyPressEvent],Coroutine[Any,Any,None]]
+def multiline_input(on_escape: KPECallable, on_send: KPECallable):
+    kb = KeyBindings()
+
+    kb.add("enter")(on_send)
+    kb.add("escape")(on_escape)
+
+    return kb
+
 async def main():
-    global windows, client, app
+    global windows, client, app, kb
     conf = help.loadJson("config.json")
+    kb = keybind_lore() 
+    async def send_msg(e: KeyPressEvent):
+        h = windows["messageInput"].body
+        content = h.text
+        st = "channels_"+str(focusingG)
+        chinfo: selfcord.TextChannel = channels[scrollCursorPos[st]]
+        h.text = ""
+        app.layout.focus(windows["messageContent"].content.children[scrollCursorPos["messageContent_"+str(focusingCh)]])
+        await chinfo.send(
+            content,
+            reference=selfcord.PartialMessage(channel=chinfo,id=msgReplyMap[chinfo.id]) if msgReplyMap[chinfo.id] != 0 else None # pyright: ignore
+        ) 
+        msgReplyMap[focusingCh] = 0
+        c=windows["messages"].children[1].children
+        if len(c)!=1:c.pop(0)
+
     windows = {
         "guilds": ScrollablePane(HSplit([Window()],style=tc.secondaryBg,width=12),show_scrollbar=False),
         "channels":ScrollablePane(HSplit([Window()],width=22,style=tc.channelListBg),show_scrollbar=False),
@@ -469,15 +373,17 @@ async def main():
         "forums":ScrollablePane(HSplit([Window()],style=tc.secondaryBg), max_available_height=848940300),
         "typing":VSplit([],height=1, style=tc.secondaryBg),
         "VerticalLine": Window(char=" ", style="class:line,vertical-line "+tc.secondaryBg, width=1),
-        "messageInput": Frame(TextArea(text="bwhwhbsbe",height = 1,dont_extend_width=True),style=tc.channelListBg)
+        
+    } | {
+        "messageInput": Frame(TextArea(height = 1),style=tc.channelListBg,modal=True, key_bindings=multiline_input(kb.get_bindings_for_keys(("escape",))[0].call,send_msg)), # pyright: ignore
+        "msgReply": Window(FormattedTextControl([("","Replying to ")],style=tc.mainBg),height=1)
     }
-    windows["messages"] = HSplit([windows["messageContent"], windows["messageInput"]], style = tc.mainBg) # pyright: ignore
+    windows["messages"] = HSplit([windows["messageContent"], HSplit([windows["messageInput"]])], style = tc.mainBg) # pyright: ignore
     windows["typingList"] = Window(FormattedTextControl())
-    
-    kb = keybind_lore() 
 
-    lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("This program requires Nerd Fonts to display icons.\nPlease install and use it as your ternimal font."), height=2, align=WindowAlign.CENTER)],style=tc.mainBg))
-    app = Application(lay,full_screen=True,mouse_support=True, key_bindings=kb,style=style_from_pygments_cls(help.DisconsoleStyle))
+    lay = Layout(HSplit([HSplit([Window(),Window(FormattedTextControl("\n\U000f066f"),align=WindowAlign.CENTER)]),Window(FormattedTextControl("Loading Disconsole"), height=2, align=WindowAlign.CENTER)],style=tc.mainBg))
+
+    app = Application(lay,full_screen=True,mouse_support=True,style=style_from_pygments_cls(help.DisconsoleStyle))
     
     client = add_events(selfcord.Client())
 

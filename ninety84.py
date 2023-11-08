@@ -3,7 +3,6 @@ from pygments.style import Style
 from pygments.token import Token
 DisconsoleToken = Token.Disconsole
 DshMarkdown = DisconsoleToken.Markdown 
-import re
 
 
 class ThemeColors:
@@ -18,8 +17,6 @@ class ThemeColors:
     url = "fg:#00A8FC"
     mentionTextHighlight = "bg:#4e4e74"
 tc = ThemeColors()
-escs = re.escape("*")
-print(escs)
 
 class DisconsoleLexer(RegexLexer):
     tokens = {
