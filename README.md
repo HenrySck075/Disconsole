@@ -1,3 +1,5 @@
+!!! If you're planning to use this, please use the [textual](https://github.com/HenrySck075/Disconsole/tree/textual) branch instead !!!
+
 # another copy of discord on terminal !!!
 
 but the thing is, this one tries to mimic the discord ui as much as possible
