@@ -7,11 +7,11 @@ from discord import Client, Color, DMChannel, GroupChannel, Message as DiscordMe
 from textual.widgets import Label, Markdown, TextArea
 if TYPE_CHECKING:
     from ..tools.datetime import datetimeparse
-    from ..tools import ThemeColors,color2hex
+    from ..tools import getThemeColors,color2hex
     from ..tools.client import Client2
 else:
     from tools.datetime import datetimeparse
-    from tools import ThemeColors,color2hex
+    from tools import getThemeColors,color2hex
     from tools.client import Client2
 from nullsafe import _
 
@@ -56,9 +56,9 @@ class Message(Widget, can_focus=True):
             await self.recompose()
 
     def compose(self) -> ComposeResult:
-        usrcol = self.user_color.to_rgb().__str__()
+        usrcol = color2hex(self.user_color)
         # User name & timestamp
-        t = f"[bold rgb{usrcol}]{self._obj.author.display_name}[/bold rgb({usrcol})] {datetimeparse(self._obj.created_at)} "
+        t = f"[bold {usrcol}]{self._obj.author.display_name}[/bold {usrcol}] {datetimeparse(self._obj.created_at)} "
         u = self._obj.author
 
         # Replied message
@@ -87,7 +87,7 @@ class Message(Widget, can_focus=True):
         if u.bot: tag = "BOT"
         if u.system: tag = "SYSTEM"
         if tag!="":
-            t+=f"[bg:{ThemeColors.accent}]{tag}[/bg:{ThemeColors.accent}]"
+            t+="[bg:discord_accent]{t}[/bg:discord_accent]".format(t=tag)
 
 
         yield Label(t, id="#msg_header")
@@ -122,14 +122,14 @@ class Chatbox(Widget):
         width: auto
     }
     """
-    def __init__(self,channel: TextChannel | Thread | DMChannel | GroupChannel, client: Client2) -> None:
+    def __init__(self,client: Client2) -> None:
         super().__init__()
-        self.channel = channel 
+        self.channel: TextChannel | Thread | DMChannel | GroupChannel | None = None
         self.client = client
         self.messages = []
         self.replying_to = None
         async def on_message(msg: DiscordMessage):
-            if msg.channel.id == self.channel.id:
+            if self.channel != None and msg.channel.id == self.channel.id:
 
                 self.messages.append(Message(msg,client))
                 await self.get_child_by_type(VerticalScroll).recompose()
@@ -139,9 +139,10 @@ class Chatbox(Widget):
     async def get_messages(self):
         j = [Message(i,self.client) async for i in self.channel.history()]
         j.extend(self.messages)
-        self.messages = []
+        self.messages = j
 
     def compose(self) -> ComposeResult:
+        if self.channel == None: return
         yield VerticalScroll(*self.messages)
         if getattr(self.channel,"slowmode_delay",0) != 0:
             with Horizontal(classes="infobox"):
@@ -149,9 +150,12 @@ class Chatbox(Widget):
         if self.replying_to != None:
             with Horizontal(classes="infobox"):
                 yield Label("Replying to [bold {c}]{u}[/bold {c}]".format(c=self.replying_to[2], u=self.replying_to[1]))
-                yield Label("[{c}]@ON[/{c}]".format(ThemeColors.accent),id="toggle_mention")
+                yield Label("[discord_accent]@ON[/discord_accent]",id="toggle_mention")
         yield TextArea(tab_behavior="indent", id="msgbox")
-        
+    
+    async def set_channel(self, channel: TextChannel | Thread | DMChannel | GroupChannel):
+        self.channel = channel
+        await self.recompose()
     """
     async def on_message_reply(self, e: Message.Reply):
         self.replying_to = (e.message_id, *e.user_render_info)

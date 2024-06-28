@@ -5,8 +5,11 @@ from discord import Client
 import sqlite3
 
 from discord.abc import T
+from textual.app import log
 
 _log = logging.getLogger("discord")
+_log.setLevel(logging.INFO)
+
 
 Events = Literal[
     "automod_rule_create",
@@ -164,9 +167,10 @@ class Client2(Client):
         event_name: Events,
         listener: Callable[..., Coroutine[Any, Any, None]]
     ):
-        if event_name not in self._events:
+        if event_name not in self._events.keys():
             self._events[event_name] = []
         self._events[event_name].append(listener)
+        log(self._events)
 
     def remove_listener(self, event_name: Events,listener: Callable[..., Coroutine[Any, Any, None]]):
         self._events[event_name].remove(listener)
@@ -205,11 +209,13 @@ class Client2(Client):
                     del listeners[idx]
 
         try:
-            coros = self._events[method] 
+            self._events[event] 
         except KeyError:
-            pass
-        else:
-            for coro in coros: self._schedule_event(coro, method, *args, **kwargs)
+            self._events[event] = []
+        finally:
+            
+            if event!="socket_event_type": log(f'Dispatching {len(self._events[event])} listeners for event {event}.',)
+            for coro in self._events[event]: self._schedule_event(coro, method, *args, **kwargs)
 
 
 

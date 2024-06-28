@@ -1,1 +1,1 @@
-from . import channels, chatbox, message
+from . import channels, message
