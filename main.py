@@ -3,7 +3,7 @@ import os
 from typing import TYPE_CHECKING
 from discord import Guild
 from textual.app import App, ComposeResult, log
-from textual.widgets import Footer, Label, OptionList, Static
+from textual.widgets import Footer, Label, ListItem, ListView, OptionList, Static
 from textual.widgets.option_list import Option
 from textual.containers import Horizontal, Vertical, VerticalScroll
 
@@ -29,18 +29,26 @@ class MApp(App):
     #userbox {
         height: 3
     }
+    #guilds, #guilds > ListItem {
+        background: $guild
+    }
+    #guilds > ListItem.--highlight {
+        background: $primary 50%
+    }
+    #guilds:focus > ListItem.--highlight {
+        background: $primary
+    }
     #guilds {
-        background: $guild;
         height: 100%
     }
     .primary {
         background: rgb(48,49,54)
     }
-    .option-list--option-highlighted, .option-list--option-hover {
-        background: $highlight
+    ListView > ListItem.--highlight {
+        background: $highlight 50%
     }
-    #channel--selected {
-        background: $select
+    ListView:focus > ListItem.--highlight {
+        background: $highlight
     }
     #channel--read {
         color: rgb(138,142,148)
@@ -81,10 +89,9 @@ class MApp(App):
         yield Label("Loading Disconsole...")
         yield Label("please i beg you")
 
-    async def on_collapsible_option_list_selected(self,e:OptionList.OptionSelected):
-        optl = e.option_list
-        if optl.id == "guilds":
-            selected_guild = int((e.option.id or "guild_0").removeprefix("guild_"))
+    async def on_list_view_selected(self,e:ListView.Selected):
+        if e.list_view.id == "guilds":
+            selected_guild = int((e.item.id or "guild_0").removeprefix("guild_"))
             self.selected_guild = (
                 self._client.get_guild(selected_guild)
                 or 
@@ -97,7 +104,7 @@ class MApp(App):
         if self._client_inited:
             with Horizontal(id="ui") as h:
                 h.styles.height = "100%"
-                yield CollapsibleOptionList([Option(i.name, id=f"guild_{i.id}") for i in self._client.guilds],id="guilds") 
+                yield ListView(*(ListItem(Label(i.name), id=f"guild_{i.id}") for i in self._client.guilds),id="guilds") 
                 yield GuildWidget(self._client)
                 yield Chatbox(self._client)
             yield Footer() 

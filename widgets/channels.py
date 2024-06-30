@@ -4,7 +4,7 @@ from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.containers import Container, Vertical, VerticalScroll
-from textual.widgets import Label, OptionList
+from textual.widgets import Label, ListItem, ListView, OptionList
 from textual.widgets.option_list import Option
 
 from widgets.collapsibe_option_list import CollapsibleOptionList
@@ -25,7 +25,7 @@ class GuildWidget(Widget, can_focus=True):
 
     def compose(self) -> ComposeResult: 
         if self.guild != None:
-            yield CollapsibleOptionList([Option(i.name, id=f"channel_{i.id}") for i in self.guild.channels if i.type != ChannelType.category],id="channels",classes="primary") 
+            yield ListView(*(ListItem(Label(i.name), id=f"channel_{i.id}") for i in self.guild.channels if i.type != ChannelType.category),id="channels",classes="primary") 
         else:
             yield Container()
 
