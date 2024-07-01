@@ -8,7 +8,7 @@ from textual.widgets.option_list import Option
 from textual.containers import Horizontal, Vertical, VerticalScroll
 
 from tools.colors import set_disconsole_css, set_theme_mode
-from widgets.collapsibe_option_list import CollapsibleOptionList
+from widgets.collapsible_list_view import CollapsibleListView
 # intriguing
 if TYPE_CHECKING:
     from .tools.client import Client2 
@@ -104,7 +104,7 @@ class MApp(App):
         if self._client_inited:
             with Horizontal(id="ui") as h:
                 h.styles.height = "100%"
-                yield ListView(*(ListItem(Label(i.name), id=f"guild_{i.id}") for i in self._client.guilds),id="guilds") 
+                yield CollapsibleListView(*(ListItem(Label(i.name), id=f"guild_{i.id}") for i in self._client.guilds),id="guilds") 
                 yield GuildWidget(self._client)
                 yield Chatbox(self._client)
             yield Footer() 

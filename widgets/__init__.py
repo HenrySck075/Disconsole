@@ -1,1 +1,1 @@
-from . import channels, message
+from . import channels, message, collapsible_list_view

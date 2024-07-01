@@ -7,7 +7,7 @@ from textual.containers import Container, Vertical, VerticalScroll
 from textual.widgets import Label, ListItem, ListView, OptionList
 from textual.widgets.option_list import Option
 
-from widgets.collapsibe_option_list import CollapsibleOptionList
+from widgets.collapsible_list_view import CollapsibleListView
 if TYPE_CHECKING:
     from ..tools.client import Client2
 else:
@@ -25,7 +25,7 @@ class GuildWidget(Widget, can_focus=True):
 
     def compose(self) -> ComposeResult: 
         if self.guild != None:
-            yield ListView(*(ListItem(Label(i.name), id=f"channel_{i.id}") for i in self.guild.channels if i.type != ChannelType.category),id="channels",classes="primary") 
+            yield CollapsibleListView(*(ListItem(Label(i.name), id=f"channel_{i.id}") for i in self.guild.channels if i.type != ChannelType.category),id="channels",classes="primary") 
         else:
             yield Container()
 
