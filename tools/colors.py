@@ -15,6 +15,7 @@ class DarkThemeColors:
     accent = "#5865f2"
     select = "#42464e"
     highlight = "#3b3c41"
+    contrast = "white"
 
 @dataclass
 class LightThemeColors:
@@ -24,6 +25,8 @@ class LightThemeColors:
     accent = "#74808d"
     select = "#d6d7dd"
     highlight = "#d6d7dd"
+    contrast = "black"
+
 def color2hex(c: Color):
     return "#"+(hex(c.r)+hex(c.g)+hex(c.b)).replace("0x","")
 
@@ -43,7 +46,8 @@ colorSys = {
     ),{
         "guild": DarkThemeColors.guild,
         "highlight": DarkThemeColors.highlight,
-        "select": DarkThemeColors.select
+        "select": DarkThemeColors.select,
+        "contrast": DarkThemeColors.contrast
     }),
     "light": inject_output(ColorSystem(
         primary=LightThemeColors.primary,
@@ -52,7 +56,8 @@ colorSys = {
     ),{
         "guild": LightThemeColors.guild,
         "highlight": LightThemeColors.highlight,
-        "select": LightThemeColors.select
+        "select": LightThemeColors.select,
+        "contrast": DarkThemeColors.contrast
     })
 }
 def set_disconsole_css(app: App):

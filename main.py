@@ -22,6 +22,9 @@ from nullsafe import undefined, _
 
 class MApp(App):
     CSS = """
+    ListItem {
+        background: transparent
+    }
     #guilds, #channels {
         width: 17;
         border: none
@@ -53,7 +56,7 @@ class MApp(App):
     #channel--read {
         color: rgb(138,142,148)
     }
-    Container {
+    Container, Chatbox{
         background: $primary
     }
     """
@@ -106,8 +109,7 @@ class MApp(App):
                 h.styles.height = "100%"
                 yield CollapsibleListView(*(ListItem(Label(i.name), id=f"guild_{i.id}") for i in self._client.guilds),id="guilds") 
                 yield GuildWidget(self._client)
-                yield Chatbox(self._client)
-            yield Footer() 
+            # yield Footer() 
         else: 
             return self.compose_splash()
 

@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
-from textual.app import ComposeResult
+from textual.app import ComposeResult, log
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.widget import Widget
 from textual.message import Message as TextualMessage
 from discord import Client, Color, DMChannel, GroupChannel, Message as DiscordMessage, TextChannel, Thread
-from textual.widgets import Label, Markdown, TextArea
+from textual.widgets import Label, ListItem, ListView, Markdown, TextArea
 if TYPE_CHECKING:
     from ..tools.datetime import datetimeparse
     from ..tools import getThemeColors,color2hex
@@ -90,7 +90,7 @@ class Message(Widget, can_focus=True):
             t+="[bg:discord_accent]{t}[/bg:discord_accent]".format(t=tag)
 
 
-        yield Label(t, id="#msg_header")
+        yield Label(t, id="msg_header")
 
         #Content
         yield Markdown(self._obj.content)
@@ -110,16 +110,21 @@ class Message(Widget, can_focus=True):
 class Chatbox(Widget):
     DEFAULT_CSS = """
     #msgbox {
-        height: auto
+        height: auto;
+        border: solid $contrast
     }
     .infobox {
-        width: 100%
+        width: 100%;
+        height: 1
     }
     #j {
         align-horizontal: right 
     }
     #toggle_mention {
         width: auto
+    }
+    ListView {
+        height: 100% !important
     }
     """
     def __init__(self,client: Client2) -> None:
@@ -128,22 +133,25 @@ class Chatbox(Widget):
         self.client = client
         self.messages = []
         self.replying_to = None
+        self.styles.height = "100%"
+        self.styles.width = "100%"
         async def on_message(msg: DiscordMessage):
             if self.channel != None and msg.channel.id == self.channel.id:
-
-                self.messages.append(Message(msg,client))
-                await self.get_child_by_type(VerticalScroll).recompose()
+                m = Message(msg,client)
+                self.messages.append(m)
+                self.get_child_by_type(ListView).append(ListItem(m))
 
         client.add_listener("message",on_message)
     
     async def get_messages(self):
-        j = [Message(i,self.client) async for i in self.channel.history()]
-        j.extend(self.messages)
-        self.messages = j
+        j = [ListItem(Message(i,self.client)) async for i in self.channel.history(limit=15)]
+        self.get_child_by_type(ListView).extend(j)
 
     def compose(self) -> ComposeResult:
-        if self.channel == None: return
-        yield VerticalScroll(*self.messages)
+        if self.channel != None:
+            yield ListView()
+        else:
+            yield Container()
         if getattr(self.channel,"slowmode_delay",0) != 0:
             with Horizontal(classes="infobox"):
                 yield Label("Slowmode is enabled. \U000f13ab", id="j")
@@ -152,10 +160,15 @@ class Chatbox(Widget):
                 yield Label("Replying to [bold {c}]{u}[/bold {c}]".format(c=self.replying_to[2], u=self.replying_to[1]))
                 yield Label("[discord_accent]@ON[/discord_accent]",id="toggle_mention")
         yield TextArea(tab_behavior="indent", id="msgbox")
-    
+
+        
     async def set_channel(self, channel: TextChannel | Thread | DMChannel | GroupChannel):
         self.channel = channel
         await self.recompose()
+        await self.get_messages()
+        l = self.get_child_by_type(ListView)
+        # l.children[0].scroll_visible(False)
+        l.index = len(l.children)-1
     """
     async def on_message_reply(self, e: Message.Reply):
         self.replying_to = (e.message_id, *e.user_render_info)

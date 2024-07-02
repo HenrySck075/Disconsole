@@ -3,8 +3,8 @@ from datetime import datetime
 months = ["January","Feburary","March","April","May","June","July","August","September","October","November","December"]
 
 def dateparse(d: datetime):
-    
-    diff = datetime.now() - d
+    d = d.replace(tzinfo=None)
+    diff = datetime.now() - d 
     if diff.days == 0:
         return "Today"
     if diff.days == 1:
