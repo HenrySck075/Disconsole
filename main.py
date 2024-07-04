@@ -51,7 +51,7 @@ class MApp(App):
         background: $highlight 50%
     }
     ListView:focus > ListItem.--highlight {
-        background: $highlight
+        background: white 15%
     }
     #channel--read {
         color: rgb(138,142,148)

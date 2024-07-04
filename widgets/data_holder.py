@@ -14,5 +14,11 @@ class DataHolder(Widget, Generic[T]):
         self.widget = widget 
         self.data = data
 
+        self.styles.width = widget.styles.width
+        self.styles.height = widget.styles.height
+
+        widget.styles.width = "100%"
+        widget.styles.height = "100%"
+
     def compose(self) -> ComposeResult:
         yield self.widget
